@@ -4,8 +4,26 @@
 #include <unistd.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
+#include <pthread.h>
 
 #define PORT 8080
+
+void *client_handler(void *socket_desc)
+{
+    int sock = *(int *)socket_desc;
+
+    printf("(Thread)Socket %d handling started...\n", sock);
+
+    char *message = "Hello from POSIX Thread Server\n";
+    write(sock, message, strlen(message));
+
+    close(sock);
+
+    free(socket_desc);
+
+    printf("(Thread) Thread ended\n");
+    return NULL;
+}
 
 int main()
 {
@@ -45,7 +63,7 @@ int main()
         exit(1);
     }
 
-    printf("Server started listening throught the port %d...\n", PORT);
+    printf("Multithread Server started listening throught the port %d...\n", PORT);
 
     // Main loop for clients
     while (1)
@@ -63,9 +81,22 @@ int main()
 
         printf("A client connected...(Socket ID: %d)\n", new_socket);
         // posix thread
-        close(new_socket);
-    }
+        int *new_sock_ptr = malloc(sizeof(int));
+        *new_sock_ptr = new_socket;
 
+        pthread_t sniffer_thread; // metablhth gia ID Thread
+
+        if (pthread_create(&sniffer_thread, NULL, client_handler, (void *)new_sock_ptr) < 0)
+        {
+            perror("Thread could not be created");
+            free(new_sock_ptr);
+            continue;
+        }
+
+        pthread_detach(sniffer_thread); // erase the thread from memory gia na mhn exoyme zombie
+
+        printf("Main: Thread created...Return to accept..\n");
+    }
     close(server_fd);
     return 0;
 }
