@@ -1,5 +1,5 @@
-#ifndef STORAGE.H
-#define STORAGE .H
+#ifndef STORAGE_H
+#define STORAGE_H
 
 typedef struct
 {

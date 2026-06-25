@@ -5,22 +5,116 @@
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <pthread.h>
+#include </home/chrissy/Desktop/airline-booking/include/storage.h>
+#include </home/chrissy/Desktop/airline-booking/include/protocol.h>
 
 #define PORT 8080
+
+pthread_mutex_t file_mutex = PTHREAD_MUTEX_INITIALIZER;
 
 void *client_handler(void *socket_desc)
 {
     int sock = *(int *)socket_desc;
+    free(socket_desc);
 
     printf("(Thread)Socket %d handling started...\n", sock);
 
-    char *message = "Hello from POSIX Thread Server\n";
-    write(sock, message, strlen(message));
+    MsgType msg_type;
+
+    if (read(sock, &msg_type, sizeof(MsgType)) <= 0)
+    {
+        close(sock);
+        return NULL;
+    }
+
+    if (msg_type == MSG_SEARCH_REQ)
+    {
+        SearchRequest req;
+        read(sock, &req, sizeof(SearchRequest));
+
+        printf("(Thread) Searching flights from %s to %s\n", req.origin, req.destination);
+
+        printf("[DEBUG 1]\n");
+        pthread_mutex_lock(&file_mutex);
+        printf("[DEBUG 2]\n");
+
+        FILE *f = fopen("data/flights.data", "rb");
+        if (f == NULL)
+        {
+            printf("[DEBUG ERROR 3]\n");
+            pthread_mutex_unlock(&file_mutex);
+            close(sock);
+            return NULL;
+        }
+
+        Flight current_flight;
+        int found = 0;
+
+        while (fread(&current_flight, sizeof(Flight), 1, f) == 1)
+        {
+            if (strcmp(current_flight.origin, req.origin) == 0 && strcmp(current_flight.destination, req.destination) == 0)
+            {
+                MsgType res_type = MSG_SEARCH_RES;
+                write(sock, &res_type, sizeof(MsgType));
+
+                write(sock, &current_flight, sizeof(Flight));
+                found = 1;
+                break;
+            }
+        }
+
+        fclose(f);
+        pthread_mutex_unlock(&file_mutex);
+
+        if (!found)
+        {
+            MsgType res_type = MSG_SEARCH_RES;
+            write(sock, &res_type, sizeof(MsgType));
+
+            Flight empty_flight;
+            empty_flight.flight_id = -1;
+            write(sock, &empty_flight, sizeof(Flight));
+        }
+    }
+
+    else if (msg_type == MSG_BOOK_REQ)
+    {
+        BookingRequest book_req;
+        read(sock, &book_req, sizeof(BookingRequest));
+
+        printf("(Thread) Booking request for %s (Flight ID: %d)\n", book_req.fullname, book_req.flight_id1);
+        int success = 0;
+
+        pthread_mutex_lock(&file_mutex);
+        FILE *f = fopen("data/flights.dat", "rb+");
+        if (f != NULL)
+        {
+            Flight current_flight;
+            while (fread(&current_flight, sizeof(Flight), 1, f) == 1)
+            {
+                if (current_flight.flight_id == book_req.flight_id1)
+                {
+                    if (current_flight.available_seats > 0)
+                    {
+                        current_flight.available_seats--;
+
+                        fseek(f, -sizeof(Flight), SEEK_CUR);
+                        fwrite(&current_flight, sizeof(Flight), 1, f);
+                        success = 1;
+                    }
+                    break;
+                }
+            }
+            fclose(f);
+        }
+        pthread_mutex_unlock(&file_mutex);
+
+        MsgType res_type = MSG_BOOK_RES;
+        write(sock, &res_type, sizeof(MsgType));
+        write(sock, &success, sizeof(int));
+    }
 
     close(sock);
-
-    free(socket_desc);
-
     printf("(Thread) Thread ended\n");
     return NULL;
 }
