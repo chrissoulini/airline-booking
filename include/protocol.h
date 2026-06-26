@@ -1,6 +1,8 @@
 #ifndef PROTOCOL_H
 #define PROTOCOL_H
 
+#include "storage.h"
+
 typedef enum
 {
     MSG_SEARCH_REQ,
@@ -19,8 +21,17 @@ typedef struct
 
 typedef struct
 {
+    int is_connecting;
+    Flight flight1;
+    Flight flight2;
+} SearchResponse;
+
+typedef struct
+{
     int flight_id1;
     int flight_id2; // antapokrish
+    int seat_number1;
+    int seat_number2;
     char passport[20];
     char country[30];
     char fullname[60];

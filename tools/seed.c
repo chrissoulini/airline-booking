@@ -20,16 +20,16 @@ int main()
     strcpy(table[0].destination, "Thessaloniki");
     strcpy(table[0].dep_time, "2026-07-01 10:00");
     strcpy(table[0].arr_time, "2026-07-01 11:00");
-    table[0].total_seats = 150;
-    table[0].available_seats = 150;
+    table[0].available_seats = MAX_SEATS;
+    memset(table[0].seats, 0, sizeof(table[0].seats));
 
     table[1].flight_id = 2;
     strcpy(table[1].origin, "Thessaloniki");
     strcpy(table[1].destination, "London");
     strcpy(table[1].dep_time, "2026-07-01 14:00");
     strcpy(table[1].arr_time, "2026-07-01 17:00");
-    table[1].total_seats = 200;
-    table[1].available_seats = 200;
+    table[1].available_seats = MAX_SEATS;
+    memset(table[1].seats, 0, sizeof(table[1].seats));
 
     // Πτήση 3 (για να υπάρχει εναλλακτική ανταπόκριση)
     table[2].flight_id = 3;
@@ -37,8 +37,12 @@ int main()
     strcpy(table[2].destination, "London");
     strcpy(table[2].dep_time, "2026-07-01 08:00");
     strcpy(table[2].arr_time, "2026-07-01 12:00");
-    table[2].total_seats = 180;
     table[2].available_seats = 0;
+
+        for (int i = 0; i < MAX_SEATS; i++)
+    {
+        table[2].seats[i] = 1;
+    }
 
     fwrite(table, sizeof(Flight), 3, f);
     fclose(f);
